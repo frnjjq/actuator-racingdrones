@@ -25,7 +25,7 @@ def main(argv):
 class UDPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
-        data = self.request[0].strip()
+        data = str(self.request[0].strip())
         coder_ip = self.server.coder_direction[0]
         coder_port = self.server.coder_direction[1]
 
@@ -39,9 +39,10 @@ class UDPHandler(socketserver.BaseRequestHandler):
 
 
 def send_coder_parameters(ip, port, discard_level, frame_skipping):
+
     conn = http.client.HTTPConnection(ip, port)
 
-    conn.request('POST', '/discard/' + discard_level)
+    conn.request('POST', '/discard/' + str(discard_level))
     res = conn.getresponse()
     while not res.closed:
         res.read()
@@ -49,7 +50,7 @@ def send_coder_parameters(ip, port, discard_level, frame_skipping):
         conn.close()
         return
 
-    conn.request('POST', '/skip/' + frame_skipping)
+    conn.request('POST', '/skip/' + str(frame_skipping))
     res = conn.getresponse()
     while not res.closed:
         res.read()
@@ -61,28 +62,41 @@ def send_coder_parameters(ip, port, discard_level, frame_skipping):
 
 
 def calculate_parameters(latency, jitter, bandwidth, packetloss):
+
     discard_level = 3
     frame_skipping = 0
     return discard_level, frame_skipping
 
 
 def parse_metrics(text):
+
     latency = float('nan')
     jitter = float('nan')
     bandwidth = float('nan')
     packetloss = float('nan')
 
-    text.split()
-    text = iter(text)
-    for word in text:
+    text = text.split()
+    for index, word in enumerate(text[:-1]):
         if word == "Latency:":
-            latency = float(text.next())
+            try:
+                latency = float(text[index+1])
+            except ValueError:
+                latency = float('nan')
         elif word == "Jitter:":
-            jitter = float(text.next())
+            try:
+                jitter = float(text[index+1])
+            except ValueError:
+                jitter = float('nan')
         elif word == "PacketLoss:":
-            bandwidth = float(text.next())
+            try:
+                packetloss = float(text[index+1])
+            except ValueError:
+                packetloss = float('nan')
         elif word == "BandWidth:":
-            packetloss = float(text.next())
+            try:
+                bandwidth = float(text[index+1])
+            except ValueError:
+                bandwidth = float('nan')
     return latency, jitter, bandwidth, packetloss
 
 
@@ -100,7 +114,12 @@ def parse_arguments(argv):
         sys.exit(2)
     for o, a in optlist:
         if o in ("-p", "--port"):
-            port_number = int(a)
+            try:
+                port_number = int(a)
+            except ValueError:
+                print("ERROR: The port is not a integer")
+                usage()
+                sys.exit(2)
         elif o in ("-c", "--coder"):
             a = a.split(":")
             if len(a) is not 2:
@@ -108,7 +127,12 @@ def parse_arguments(argv):
                 usage()
                 sys.exit(2)
             coder_ip = a[0]
-            coder_port = int(a[1])
+            try:
+                coder_port = int(a[1])
+            except ValueError:
+                print("ERROR: The port of the coder is not a integer")
+                usage()
+                sys.exit(2)
         elif o in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -120,22 +144,25 @@ def parse_arguments(argv):
 
 
 def usage():
-    message = (
-        "\n"
-        "Usage:   python3 actuator.py [OPTIONS] \n"
-        "\n"
-        "Racingdrones Q4S coder actuator\n"
-        "\n"
-        "Options:\n"
-        "    -h,   --help     Show help\n"
-        "    -p,   --port     Specify the UDP port to listen for Q4S\n"
-        "                     messages\n"
-        "    -o,   --output   String containing the ip and port of\n"
-        "                     the coder. The format is 192.168.0.1:8080\n"
-    )
-    print(message)
+
+    print(usage_message)
     return
 
 
+usage_message = (
+    "\n"
+    "Usage:   python3 actuator.py [OPTIONS] \n"
+    "\n"
+    "Racingdrones Q4S coder actuator\n"
+    "\n"
+    "Options:\n"
+    "    -h,   --help     Show help\n"
+    "    -p,   --port     Specify the UDP port to listen for Q4S\n"
+    "                     messages\n"
+    "    -c,   --coder   String containing the ip and port of\n"
+    "                     the coder. The format is 192.168.0.1:8080\n"
+)
+
 if __name__ == "__main__":
+
     main(sys.argv)
