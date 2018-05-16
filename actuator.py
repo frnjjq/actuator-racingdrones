@@ -1,13 +1,33 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+"""This module implements the RacingDrones Actuator
+
+This module is intended to be executed as the main. It listen fron Q4S messages
+, selects the best quality parameters for the coder and send those to the coder.
+
+"""
 
 import socketserver
 import http.client
 import sys
 import getopt
 
+USAGE_MESSAGE = (
+    "\n"
+    "Usage:   python3 actuator.py [OPTIONS] \n"
+    "\n"
+    "Racingdrones Q4S coder actuator\n"
+    "\n"
+    "Options:\n"
+    "    -h,   --help     Show help\n"
+    "    -p,   --port     Specify the UDP port to listen for Q4S\n"
+    "                     messages\n"
+    "    -c,   --coder   String containing the ip and port of\n"
+    "                     the coder. The format is 192.168.0.1:8080\n"
+)
 
 def main(argv):
+    """Main function it starts the server"""
 
     port_number, coder_ip, coder_port = parse_arguments(argv)
 
@@ -23,8 +43,14 @@ def main(argv):
 
 
 class UDPHandler(socketserver.BaseRequestHandler):
+    """Handler class for the UDP server"""
 
     def handle(self):
+        """
+        Process the UDP packet extracting the parameters. It sends the http
+        requests when all the parameters has benn sent.
+        """
+
         data = str(self.request[0].strip())
         coder_ip = self.server.coder_direction[0]
         coder_port = self.server.coder_direction[1]
@@ -38,9 +64,10 @@ class UDPHandler(socketserver.BaseRequestHandler):
         return
 
 
-def send_coder_parameters(ip, port, discard_level, frame_skipping):
+def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
+    """ Send the parameters given to the Ip and port via HTTP."""
 
-    conn = http.client.HTTPConnection(ip, port)
+    conn = http.client.HTTPConnection(coder_ip, coder_port)
 
     conn.request('POST', '/discard/' + str(discard_level))
     res = conn.getresponse()
@@ -62,6 +89,7 @@ def send_coder_parameters(ip, port, discard_level, frame_skipping):
 
 
 def calculate_parameters(latency, jitter, bandwidth, packetloss):
+    """ From the network Q4S parameters generats the coder options."""
 
     discard_level = 3
     frame_skipping = 0
@@ -69,7 +97,7 @@ def calculate_parameters(latency, jitter, bandwidth, packetloss):
 
 
 def parse_metrics(text):
-
+    """ Parses the Q4S message into the corresponding metrics"""
     latency = float('nan')
     jitter = float('nan')
     bandwidth = float('nan')
@@ -101,42 +129,43 @@ def parse_metrics(text):
 
 
 def parse_arguments(argv):
+    """ Parses the program arguments in order to ensure that everthing is alright"""
 
     port_number = -1
     coder_ip = ""
     coder_port = -1
     try:
-        optlist, arglist = getopt.getopt(
+        optlist, dummy = getopt.getopt(
             argv[1:], "p:c:h", ["port=", "coder=", "help"])
     except getopt.GetoptError as err:
         print(err)
         usage()
         sys.exit(2)
-    for o, a in optlist:
-        if o in ("-p", "--port"):
+    for option, value in optlist:
+        if option in ("-p", "--port"):
             try:
-                port_number = int(a)
+                port_number = int(value)
             except ValueError:
                 print("ERROR: The port is not a integer")
                 usage()
                 sys.exit(2)
-        elif o in ("-c", "--coder"):
-            a = a.split(":")
-            if len(a) is not 2:
-                print("ERROR: The coder direction is not ok", len(a))
+        elif option in ("-c", "--coder"):
+            value = value.split(":")
+            if len(value) != 2:
+                print("ERROR: The coder direction is not ok", len(value))
                 usage()
                 sys.exit(2)
-            coder_ip = a[0]
+            coder_ip = value[0]
             try:
-                coder_port = int(a[1])
+                coder_port = int(value[1])
             except ValueError:
                 print("ERROR: The port of the coder is not a integer")
                 usage()
                 sys.exit(2)
-        elif o in ("-h", "--help"):
+        elif option in ("-h", "--help"):
             usage()
             sys.exit(0)
-    if port_number is -1 or coder_ip is "" or coder_port is -1:
+    if port_number == -1 or coder_ip == "" or coder_port == -1:
         print("ERROR: The required parameters are not supplied")
         usage()
         sys.exit(2)
@@ -144,24 +173,10 @@ def parse_arguments(argv):
 
 
 def usage():
-
-    print(usage_message)
+    """ Print usage to the terminal"""
+    print(USAGE_MESSAGE)
     return
 
-
-usage_message = (
-    "\n"
-    "Usage:   python3 actuator.py [OPTIONS] \n"
-    "\n"
-    "Racingdrones Q4S coder actuator\n"
-    "\n"
-    "Options:\n"
-    "    -h,   --help     Show help\n"
-    "    -p,   --port     Specify the UDP port to listen for Q4S\n"
-    "                     messages\n"
-    "    -c,   --coder   String containing the ip and port of\n"
-    "                     the coder. The format is 192.168.0.1:8080\n"
-)
 
 if __name__ == "__main__":
 

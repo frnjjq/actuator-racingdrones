@@ -2,7 +2,7 @@ import unittest
 import io
 import sys
 import math
-from actuator import parse_metrics, calculate_parameters, parse_arguments, usage_message, usage
+from actuator import parse_metrics, calculate_parameters, parse_arguments, USAGE_MESSAGE, usage
 
 
 class TestActuator(unittest.TestCase):
@@ -86,7 +86,7 @@ class TestActuator(unittest.TestCase):
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_parse_arguments_extra(self):
         capturedOutput = io.StringIO()
@@ -98,7 +98,7 @@ class TestActuator(unittest.TestCase):
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_parse_arguments_help(self):
         capturedOutput = io.StringIO()
@@ -110,7 +110,7 @@ class TestActuator(unittest.TestCase):
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
         self.assertEqual(cm.exception.code, 0)
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_parse_arguments_wrong_port(self):
         capturedOutput = io.StringIO()
@@ -122,7 +122,7 @@ class TestActuator(unittest.TestCase):
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_parse_arguments_wrong_port_ip(self):
         capturedOutput = io.StringIO()
@@ -134,7 +134,7 @@ class TestActuator(unittest.TestCase):
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_parse_arguments_wrong_ip(self):
         capturedOutput = io.StringIO()
@@ -146,7 +146,7 @@ class TestActuator(unittest.TestCase):
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_usage(self):
         capturedOutput = io.StringIO()
@@ -154,7 +154,7 @@ class TestActuator(unittest.TestCase):
         usage()
         sys.stdout = sys.__stdout__
         stdout_msg = capturedOutput.getvalue()
-        self.assertIn(usage_message, stdout_msg)
+        self.assertIn(USAGE_MESSAGE, stdout_msg)
 
     def test_coder_parameters(self):
         return
