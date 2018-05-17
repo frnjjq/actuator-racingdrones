@@ -15,7 +15,7 @@ script:
   - radon cc actuator.py -a -s
   - radon raw actuator.py
   - radon mi actuator.py -s
-  - python actuator_test.py -v
+  - python actuator_test.py
   - coverage run --source=actuator actuator_test.py
   - coveralls
 

@@ -9,6 +9,7 @@ This module is intended to be executed as the main. It listen fron Q4S messages
 
 import socketserver
 import http.client
+import math
 import sys
 import getopt
 
@@ -25,6 +26,7 @@ USAGE_MESSAGE = (
     "    -c,   --coder   String containing the ip and port of\n"
     "                     the coder. The format is 192.168.0.1:8080\n"
 )
+
 
 def main(argv):
     """Main function it starts the server"""
@@ -90,9 +92,31 @@ def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
 
 def calculate_parameters(latency, jitter, bandwidth, packetloss):
     """ From the network Q4S parameters generats the coder options."""
-
-    discard_level = 3
-    frame_skipping = 0
+    #pylint: disable=unused-argument
+    if math.isnan(bandwidth):
+        discard_level = 3
+        frame_skipping = 0
+    elif bandwidth > 6192:
+        discard_level = 0
+        frame_skipping = 0
+    elif bandwidth > 6000:
+        discard_level = 1
+        frame_skipping = 0
+    elif bandwidth > 5800:
+        discard_level = 2
+        frame_skipping = 0
+    elif bandwidth > 5600:
+        discard_level = 3
+        frame_skipping = 0
+    elif bandwidth > 5400:
+        discard_level = 4
+        frame_skipping = 0
+    elif bandwidth > 4000:
+        discard_level = 5
+        frame_skipping = 0
+    else:
+        discard_level = 5
+        frame_skipping = int((bandwidth/4000)*30)
     return discard_level, frame_skipping
 
 
