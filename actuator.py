@@ -119,7 +119,7 @@ def calculate_parameters(latency, jitter, bandwidth, packetloss):
         frame_skipping = 0
     else:
         discard_level = 5
-        frame_skipping = 30 - int((bandwidth/4000)*30)
+        frame_skipping = int(30 - (bandwidth/4000)*30)
     return discard_level, frame_skipping
 
 
