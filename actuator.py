@@ -53,15 +53,16 @@ class UDPHandler(socketserver.BaseRequestHandler):
         requests when all the parameters has benn sent.
         """
 
-        data = str(self.request[0].strip())
+        data = self.request[0].strip()
+        data = data.decode("utf-8")
         coder_ip = self.server.coder_direction[0]
         coder_port = self.server.coder_direction[1]
 
         latency, jitter, bandwidth, packetloss = parse_metrics(data)
         discard_level, frame_skipping = calculate_parameters(
             latency, jitter, bandwidth, packetloss)
-        send_coder_parameters(coder_ip, coder_port,
-                              discard_level, frame_skipping)
+        if send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
+            print("INFO: Set coder to discard: ", discard_level, " skip: ", frame_skipping)
 
         return
 
@@ -70,24 +71,26 @@ def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
     """ Send the parameters given to the Ip and port via HTTP."""
 
     conn = http.client.HTTPConnection(coder_ip, coder_port)
-
-    conn.request('POST', '/discard/' + str(discard_level))
-    res = conn.getresponse()
-    while not res.closed:
-        res.read()
-    if res.status != 200:
+    try:
+        conn.request('POST', '/discard/' + str(discard_level))
+    except ConnectionRefusedError:
+        print("ERROR: Not listening coder in ", coder_ip, ":", str(coder_port))
         conn.close()
-        return
-
-    conn.request('POST', '/skip/' + str(frame_skipping))
+        return False
     res = conn.getresponse()
-    while not res.closed:
-        res.read()
-    if res.status != 200:
+    status_1 = res.status
+
+    try:
+        conn.request('POST', '/skip/' + str(frame_skipping))
+    except ConnectionRefusedError:
+        print("ERROR: Not listening coder in ", coder_ip, ":", str(coder_port))
         conn.close()
-        return
+        return False
+    res = conn.getresponse()
+    status_2 = res.status
+
     conn.close()
-    return
+    return status_1 == 200 and status_2 == 200
 
 
 def calculate_parameters(latency, jitter, bandwidth, packetloss):
@@ -116,7 +119,7 @@ def calculate_parameters(latency, jitter, bandwidth, packetloss):
         frame_skipping = 0
     else:
         discard_level = 5
-        frame_skipping = int((bandwidth/4000)*30)
+        frame_skipping = 30 - int((bandwidth/4000)*30)
     return discard_level, frame_skipping
 
 
