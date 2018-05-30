@@ -61,8 +61,12 @@ class UDPHandler(socketserver.BaseRequestHandler):
         latency, jitter, bandwidth, packetloss = parse_metrics(data)
         discard_level, frame_skipping = calculate_parameters(
             latency, jitter, bandwidth, packetloss)
-        if send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
-            print("INFO: Set coder to discard: ", discard_level, " skip: ", frame_skipping)
+        is_discard, is_skip = send_coder_parameters(coder_ip, coder_port,
+                                                    discard_level, frame_skipping)
+        if is_discard:
+            print("INFO: Set coder to discard: ", discard_level)
+        if is_skip:
+            print("INFO: Set coder to skip: ", frame_skipping)
 
         return
 
@@ -76,7 +80,7 @@ def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
     except ConnectionRefusedError:
         print("ERROR: Not listening coder in ", coder_ip, ":", str(coder_port))
         conn.close()
-        return False
+        return False, False
     res = conn.getresponse()
     status_1 = res.status
 
@@ -85,12 +89,14 @@ def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
     except ConnectionRefusedError:
         print("ERROR: Not listening coder in ", coder_ip, ":", str(coder_port))
         conn.close()
-        return False
+        if status_1 == 200:
+            return True, False
+            return False, False
     res = conn.getresponse()
     status_2 = res.status
 
     conn.close()
-    return status_1 == 200 and status_2 == 200
+    return status_1 == 200, status_2 == 200
 
 
 def calculate_parameters(latency, jitter, bandwidth, packetloss):
