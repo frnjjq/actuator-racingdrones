@@ -91,7 +91,7 @@ def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
         conn.close()
         if status_1 == 200:
             return True, False
-            return False, False
+        return False, False
     res = conn.getresponse()
     status_2 = res.status
 
@@ -102,30 +102,35 @@ def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
 def calculate_parameters(latency, jitter, bandwidth, packetloss):
     """ From the network Q4S parameters generats the coder options."""
     #pylint: disable=unused-argument
-    if math.isnan(bandwidth):
-        discard_level = 3
-        frame_skipping = 0
-    elif bandwidth > 6192:
-        discard_level = 0
-        frame_skipping = 0
-    elif bandwidth > 6000:
-        discard_level = 1
-        frame_skipping = 0
-    elif bandwidth > 5800:
-        discard_level = 2
-        frame_skipping = 0
-    elif bandwidth > 5600:
-        discard_level = 3
-        frame_skipping = 0
-    elif bandwidth > 5400:
-        discard_level = 4
-        frame_skipping = 0
-    elif bandwidth > 4000:
-        discard_level = 5
-        frame_skipping = 0
+    if packetloss == 0:
+        if math.isnan(bandwidth):
+            discard_level = 3
+            frame_skipping = 0
+        elif bandwidth > 9650:
+            discard_level = 0
+            frame_skipping = 0
+        elif bandwidth > 9600:
+            discard_level = 1
+            frame_skipping = 0
+        elif bandwidth > 9400:
+            discard_level = 2
+            frame_skipping = 0
+        elif bandwidth > 8500:
+            discard_level = 3
+            frame_skipping = 0
+        elif bandwidth > 7000:
+            discard_level = 4
+            frame_skipping = 0
+        elif bandwidth > 5000:
+            discard_level = 5
+            frame_skipping = 0
+        else:
+            discard_level = 5
+            frame_skipping = int(30 - (bandwidth/5000)*30)
     else:
-        discard_level = 5
-        frame_skipping = int(30 - (bandwidth/4000)*30)
+        discard_level = 0
+        frame_skipping = int(30 - (bandwidth/9650)*30)
+
     return discard_level, frame_skipping
 
 
