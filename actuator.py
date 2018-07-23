@@ -71,9 +71,9 @@ class UDPHandler(socketserver.BaseRequestHandler):
 
         for name, parameter, result in zip(parameters_name, parameters, result):
             if result :
-                print('\033[94m',"INFO: Set coder to ", name, ": ", parameter, '\033[0m')
+                print('\033[94m',"INFO: Set coder to", name, ":", parameter, '\033[0m')
             else :
-                print('\033[93m'"WARN: Failed to set coder to ", name, ": ", parameter, '\033[0m')
+                print('\033[93m'"WARN: Failed to set coder to", name, ":", parameter, '\033[0m')
         return
 
 
@@ -108,8 +108,7 @@ def retrieve_parameters (coder_ip, coder_port, parameters_name):
             result.append(False)
             break
         res = conn.getresponse()
-        res.msg
-        result.append(int(res.msg))
+        result.append(int(res.read()))
     conn.close()
     return result
 
