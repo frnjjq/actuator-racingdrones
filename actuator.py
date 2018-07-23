@@ -7,6 +7,7 @@ This module is intended to be executed as the main. It listen fron Q4S messages
 
 """
 
+import importlib
 import socketserver
 import http.client
 import math
@@ -23,23 +24,27 @@ USAGE_MESSAGE = (
     "    -h,   --help     Show help\n"
     "    -p,   --port     Specify the UDP port to listen for Q4S\n"
     "                     messages\n"
-    "    -c,   --coder   String containing the ip and port of\n"
+    "    -c,   --coder    String containing the ip and port of\n"
     "                     the coder. The format is 192.168.0.1:8080\n"
+    "    -r    --rules    Python file that contains the implementation\n"
+    "                     of the rules and parameters to decide\n"     
 )
 
 
 def main(argv):
     """Main function it starts the server"""
 
-    port_number, coder_ip, coder_port = parse_arguments(argv)
-
+    port_number, coder_ip, coder_port, rules_file = parse_arguments(argv)
+    rules = importlib.import_module(rules_file, __name__)
+    importlib.invalidate_caches()
     try:
         server = socketserver.UDPServer(('', port_number), UDPHandler)
         server.coder_direction = (coder_ip, coder_port)
-        print('INFO: Started UDP server on port ', port_number)
+        server.rules = rules
+        print('\033[94m', 'INFO: Started UDP server on port ', port_number, '\033[0m')
         server.serve_forever()
     except KeyboardInterrupt:
-        print('INFO: ^C received, shutting down UDP server')
+        print('\033[94m', 'INFO: ^C received, shutting down UDP server', '\033[0m')
         server.shutdown()
     return
 
@@ -57,81 +62,56 @@ class UDPHandler(socketserver.BaseRequestHandler):
         data = data.decode("utf-8")
         coder_ip = self.server.coder_direction[0]
         coder_port = self.server.coder_direction[1]
+        parameters_name = self.server.rules.parameters_name
 
         latency, jitter, bandwidth, packetloss = parse_metrics(data)
-        discard_level, frame_skipping = calculate_parameters(
-            latency, jitter, bandwidth, packetloss)
-        is_discard, is_skip = send_coder_parameters(coder_ip, coder_port,
-                                                    discard_level, frame_skipping)
-        if is_discard:
-            print("INFO: Set coder to discard: ", discard_level)
-        if is_skip:
-            print("INFO: Set coder to skip: ", frame_skipping)
+        current_parameters = retrieve_parameters (coder_ip, coder_port, parameters_name)
+        parameters = self.server.rules.calculate_parameters(latency, jitter, bandwidth, packetloss, current_parameters)
+        result = send_coder_parameters(coder_ip, coder_port, parameters_name, parameters)
 
+        for name, parameter, result in zip(parameters_name, parameters, result):
+            if result :
+                print('\033[94m',"INFO: Set coder to ", name, ": ", parameter, '\033[0m')
+            else :
+                print('\033[93m'"WARN: Failed to set coder to ", name, ": ", parameter, '\033[0m')
         return
 
 
-def send_coder_parameters(coder_ip, coder_port, discard_level, frame_skipping):
+def send_coder_parameters(coder_ip, coder_port, parameters_name, parameters):
     """ Send the parameters given to the Ip and port via HTTP."""
 
+    result = []
     conn = http.client.HTTPConnection(coder_ip, coder_port)
-    try:
-        conn.request('POST', '/discard/' + str(discard_level))
-    except ConnectionRefusedError:
-        print("ERROR: Not listening coder in ", coder_ip, ":", str(coder_port))
-        conn.close()
-        return False, False
-    res = conn.getresponse()
-    status_1 = res.status
-
-    try:
-        conn.request('POST', '/skip/' + str(frame_skipping))
-    except ConnectionRefusedError:
-        print("ERROR: Not listening coder in ", coder_ip, ":", str(coder_port))
-        conn.close()
-        if status_1 == 200:
-            return True, False
-        return False, False
-    res = conn.getresponse()
-    status_2 = res.status
-
-    conn.close()
-    return status_1 == 200, status_2 == 200
-
-
-def calculate_parameters(latency, jitter, bandwidth, packetloss):
-    """ From the network Q4S parameters generats the coder options."""
-    #pylint: disable=unused-argument
-    if packetloss == 0:
-        if math.isnan(bandwidth):
-            discard_level = 3
-            frame_skipping = 0
-        elif bandwidth > 9650:
-            discard_level = 0
-            frame_skipping = 0
-        elif bandwidth > 9600:
-            discard_level = 1
-            frame_skipping = 0
-        elif bandwidth > 9400:
-            discard_level = 2
-            frame_skipping = 0
-        elif bandwidth > 8500:
-            discard_level = 3
-            frame_skipping = 0
-        elif bandwidth > 7000:
-            discard_level = 4
-            frame_skipping = 0
-        elif bandwidth > 5000:
-            discard_level = 5
-            frame_skipping = 0
+    for name, parameter in zip(parameters_name, parameters):
+        try:
+            conn.request('POST', '/' + name + '/' + str(parameter))
+        except ConnectionRefusedError:
+            print('\033[91m',"ERROR: Not listening coder in ", coder_ip, ":", str(coder_port), '\033[0m')
+            result.append(False)
+            break
+        res = conn.getresponse()
+        if res.status == 200:
+            result.append(True)
         else:
-            discard_level = 5
-            frame_skipping = int(30 - (bandwidth/5000)*30)
-    else:
-        discard_level = 0
-        frame_skipping = int(30 - (bandwidth/9650)*30)
+            result.append(False)
+    conn.close()
+    return result
 
-    return discard_level, frame_skipping
+def retrieve_parameters (coder_ip, coder_port, parameters_name):
+    result = []
+    conn = http.client.HTTPConnection(coder_ip, coder_port)
+    for name in parameters_name:
+        try:
+            conn.request('GET', '/' + name)
+        except ConnectionRefusedError:
+            print('\033[91m',"ERROR: Not listening coder in ", coder_ip, ":", str(coder_port), '\033[0m')
+            result.append(False)
+            break
+        res = conn.getresponse()
+        res.msg
+        result.append(int(res.msg))
+    conn.close()
+    return result
 
 
 def parse_metrics(text):
@@ -172,9 +152,10 @@ def parse_arguments(argv):
     port_number = -1
     coder_ip = ""
     coder_port = -1
+    rules_file = ""
     try:
         optlist, dummy = getopt.getopt(
-            argv[1:], "p:c:h", ["port=", "coder=", "help"])
+            argv[1:], "p:c:r:h", ["port=","rules=", "coder=", "help"])
     except getopt.GetoptError as err:
         print(err)
         usage()
@@ -184,30 +165,33 @@ def parse_arguments(argv):
             try:
                 port_number = int(value)
             except ValueError:
-                print("ERROR: The port is not a integer")
+                print('\033[91m',"ERROR: The port is not a integer", '\033[0m')
                 usage()
                 sys.exit(2)
         elif option in ("-c", "--coder"):
             value = value.split(":")
             if len(value) != 2:
-                print("ERROR: The coder direction is not ok", len(value))
+                print('\033[91m',"ERROR: The coder direction is not ok", len(value), '\033[0m')
                 usage()
                 sys.exit(2)
             coder_ip = value[0]
             try:
                 coder_port = int(value[1])
             except ValueError:
-                print("ERROR: The port of the coder is not a integer")
+                print('\033[91m',"ERROR: The port of the coder is not a integer", '\033[0m')
                 usage()
                 sys.exit(2)
+        elif option in ("-r", "--rules"):
+            rules_file = value
+
         elif option in ("-h", "--help"):
             usage()
             sys.exit(0)
-    if port_number == -1 or coder_ip == "" or coder_port == -1:
-        print("ERROR: The required parameters are not supplied")
+    if port_number == -1 or coder_ip == "" or coder_port == -1 or rules_file == "":
+        print('\033[91m',"ERROR: The required parameters are not supplied", '\033[0m')
         usage()
         sys.exit(2)
-    return port_number, coder_ip, coder_port
+    return port_number, coder_ip, coder_port, rules_file
 
 
 def usage():
