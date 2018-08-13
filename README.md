@@ -16,10 +16,12 @@ Options:
     -c,   --coder    String containing the ip and port ofthe coder. The format is 192.168.0.1:8080
     -r    --rules    Python file that contains the implementation of the rules to decide
 Example:
-    python actuator.py -p 3001 -c 127.0.0.1:3000 -r internet_seg_rules
+    python actuator.py -p 3001 -c 127.0.0.1:3000 -r csv_rules
 ```
+
+
 ## Rules Files
-For each launch of the actuator a rules file must be supplied to the command line. This rules file adds flexibility to the actuator so new parametes and rules can be handly included. 
+For each launch of the actuator a rules file must be supplied to the command line. This rules file adds flexibility to the actuator so new parametes and rules can be handly included. Anyway the default rules for the project are the ones contained in csv_rules.
 
 The rules file define how many parameters are to be managed at the coder. The function that defines the behaviour of those parameters supplied must be implemented too.
 
@@ -35,7 +37,7 @@ The second element that must be implemented in the rules file is the function ca
 
 This function takes four attributes(The listed Q4S attributes) and returns a tuple with the same lenght as the parameters_name tuple. Those attributes are floats containing the values found in the Q4S message. Some or all of them can be nan meaning that that parameter was not contained in the Q4S message.
 
-The return number must be an integer type. For example, for the previous parameters_name.:
+The return number must be a list integer type. For example, for the previous parameters_name.:
 ```
 def calculate_parameters(latency, jitter, bandwidth, packetloss, current_parameters):
     if bandwidth > 9650:
